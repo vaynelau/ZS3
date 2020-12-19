@@ -8,8 +8,13 @@ class BaseTrainer:
         tbar = tqdm(self.train_loader)
         num_img_tr = len(self.train_loader)
         for i, sample in enumerate(tbar):
-            if len(sample["image"]) > 1:
-                image, target = sample["image"], sample["label"]
+            # print('sample', sample.keys())
+            # print(sample["image"].size(), sample["label"].size(), sample["image_name"])
+            # print('sample', sample[0].size(), sample[1].size())
+            # if len(sample["image"]) > 1:
+            if len(sample[0]) > 1:
+                # image, target = sample["image"], sample["label"]
+                image, target = sample[0], sample[1]
                 if self.args.cuda:
                     image, target = image.cuda(), target.cuda()
                 self.scheduler(self.optimizer, i, epoch, self.best_pred)

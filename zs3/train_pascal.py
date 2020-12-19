@@ -3,8 +3,9 @@ import os
 import numpy as np
 import torch
 from tqdm import tqdm
+import yaml
 
-from zs3.dataloaders import make_data_loader
+from zs3.dataloaders import make_data_loader, get_split, get_dataset
 from zs3.modeling.deeplab import DeepLab
 from zs3.modeling.sync_batchnorm.replicate import patch_replication_callback
 from zs3.dataloaders.datasets import DATASETS_DIRS
@@ -19,6 +20,11 @@ from zs3.exp_data import CLASSES_NAMES
 from zs3.base_trainer import BaseTrainer
 
 
+def get_config(config):
+    with open(config, 'r') as stream:
+        return yaml.load(stream, Loader=yaml.FullLoader)
+
+
 class Trainer(BaseTrainer):
     def __init__(self, args):
         self.args = args
@@ -30,11 +36,67 @@ class Trainer(BaseTrainer):
         self.summary = TensorboardSummary(self.saver.experiment_dir)
         self.writer = self.summary.create_summary()
 
-        # Define Dataloader
-        kwargs = {"num_workers": args.workers, "pin_memory": True}
-        (self.train_loader, self.val_loader, _, self.nclass,) = make_data_loader(
-            args, **kwargs
+        """
+            Get dataLoader
+        """
+        config = get_config(args.config)
+        # cfg = {'datadir': './dataset/', 'dataset': 'voc12', 'ignore_index': '255'}
+        vals_cls, valu_cls, all_labels, visible_classes, visible_classes_test, train, val, sampler, visibility_mask, cls_map, cls_map_test = get_split(
+            config)
+        assert (visible_classes_test.shape[0] == config['dis']['out_dim_cls'] - 1)
+
+        dataset = get_dataset(config['DATAMODE'])(
+            train=train,
+            test=None,
+            root=config['ROOT'],
+            split=config['SPLIT']['TRAIN'],
+            base_size=513,
+            crop_size=config['IMAGE']['SIZE']['TRAIN'],
+            mean=(config['IMAGE']['MEAN']['B'], config['IMAGE']['MEAN']['G'], config['IMAGE']['MEAN']['R']),
+            warp=config['WARP_IMAGE'],
+            scale=(0.5, 1.5),
+            flip=True,
+            visibility_mask=visibility_mask
         )
+        print('train dataset:', len(dataset))
+
+        loader = torch.utils.data.DataLoader(
+            dataset=dataset,
+            batch_size=config['BATCH_SIZE']['TRAIN'],
+            num_workers=config['NUM_WORKERS'],
+            sampler=sampler
+        )
+
+        dataset_test = get_dataset(config['DATAMODE'])(
+            train=None,
+            test=val,
+            root=config['ROOT'],
+            split=config['SPLIT']['TEST'],
+            base_size=513,
+            crop_size=config['IMAGE']['SIZE']['TEST'],
+            mean=(config['IMAGE']['MEAN']['B'], config['IMAGE']['MEAN']['G'], config['IMAGE']['MEAN']['R']),
+            warp=config['WARP_IMAGE'],
+            scale=None,
+            flip=False
+        )
+        print('test dataset:', len(dataset_test))
+
+        loader_test = torch.utils.data.DataLoader(
+            dataset=dataset_test,
+            batch_size=config['BATCH_SIZE']['TEST'],
+            num_workers=config['NUM_WORKERS'],
+            shuffle=False
+        )
+
+        # kwargs = {"num_workers": args.workers, "pin_memory": True}
+        # (self.train_loader, self.val_loader, _, self.nclass,) = make_data_loader(
+        #     args, **kwargs
+        # )
+        # print('self.nclass', self.nclass)
+
+        self.train_loader = loader
+        self.val_loader = loader_test
+        self.nclass = 21
 
         # Define network
         model = DeepLab(
@@ -119,7 +181,8 @@ class Trainer(BaseTrainer):
         tbar = tqdm(self.val_loader, desc="\r")
         test_loss = 0.0
         for i, sample in enumerate(tbar):
-            image, target = sample["image"], sample["label"]
+            # image, target = sample["image"], sample["label"]
+            image, target = sample[0], sample[1]
             if self.args.cuda:
                 image, target = image.cuda(), target.cuda()
             with torch.no_grad():
@@ -250,6 +313,13 @@ def main():
         help="set the checkpoint name",
     )
 
+    parser.add_argument(
+        '--config',
+        type=str,
+        default='***.yaml',
+        help='configuration file for train/val',
+    )
+
     # evaluation option
     parser.add_argument(
         "--eval-interval", type=int, default=10, help="evaluation interval (default: 1)"
@@ -264,7 +334,7 @@ def main():
     # 4 unseen
     # parser.add_argument('--unseen_classes_idx', type=int, default=[10, 14, 1, 18])
     # 2 unseen
-    parser.add_argument("--unseen_classes_idx", type=int, default=[10, 14])
+    # parser.add_argument("--unseen_classes_idx", type=int, default=[10, 14])
 
     args = parser.parse_args()
     args.cuda = not args.no_cuda and torch.cuda.is_available()

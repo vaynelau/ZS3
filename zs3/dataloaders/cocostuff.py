@@ -132,7 +132,7 @@ class _CocoStuff(data.Dataset):
             self.labels.append(label)
 
     def __getitem__(self, index):
-        #print(index)
+        # print(index)
         if self.preload:
             image, label = self.images[index], self.labels[index]
         else:
@@ -193,6 +193,7 @@ class CocoStuff10k(_CocoStuff):
             label -= 2  # unlabeled (1 -> -1)
         return image, label
 
+
 class LoaderZLS(_CocoStuff):
     """Load any ZSL dataset"""
 
@@ -249,7 +250,6 @@ class CocoStuff164k(_CocoStuff):
         image = cv2.imread(image_path, cv2.IMREAD_COLOR).astype(np.float32)
         label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE).astype(np.int64)
         return image, label
-        
 
 
 def get_parent_class(value, dictionary):

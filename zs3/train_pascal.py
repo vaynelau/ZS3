@@ -40,7 +40,6 @@ class Trainer(BaseTrainer):
             Get dataLoader
         """
         config = get_config(args.config)
-        # cfg = {'datadir': './dataset/', 'dataset': 'voc12', 'ignore_index': '255'}
         vals_cls, valu_cls, all_labels, visible_classes, visible_classes_test, train, val, sampler, visibility_mask, cls_map, cls_map_test = get_split(
             config)
         assert (visible_classes_test.shape[0] == config['dis']['out_dim_cls'] - 1)
@@ -50,7 +49,7 @@ class Trainer(BaseTrainer):
             test=None,
             root=config['ROOT'],
             split=config['SPLIT']['TRAIN'],
-            base_size=513,
+            base_size=312,
             crop_size=config['IMAGE']['SIZE']['TRAIN'],
             mean=(config['IMAGE']['MEAN']['B'], config['IMAGE']['MEAN']['G'], config['IMAGE']['MEAN']['R']),
             warp=config['WARP_IMAGE'],
@@ -72,7 +71,7 @@ class Trainer(BaseTrainer):
             test=val,
             root=config['ROOT'],
             split=config['SPLIT']['TEST'],
-            base_size=513,
+            base_size=312,
             crop_size=config['IMAGE']['SIZE']['TEST'],
             mean=(config['IMAGE']['MEAN']['B'], config['IMAGE']['MEAN']['G'], config['IMAGE']['MEAN']['R']),
             warp=config['WARP_IMAGE'],
@@ -88,11 +87,11 @@ class Trainer(BaseTrainer):
             shuffle=False
         )
 
-        # kwargs = {"num_workers": args.workers, "pin_memory": True}
-        # (self.train_loader, self.val_loader, _, self.nclass,) = make_data_loader(
-        #     args, **kwargs
-        # )
-        # print('self.nclass', self.nclass)
+        kwargs = {"num_workers": args.workers, "pin_memory": True}
+        (self.train_loader, self.val_loader, _, self.nclass,) = make_data_loader(
+            args, **kwargs
+        )
+        print('self.nclass', self.nclass)
 
         self.train_loader = loader
         self.val_loader = loader_test

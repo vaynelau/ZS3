@@ -24,6 +24,11 @@ from tqdm import tqdm
 from PIL import Image
 
 
+def load_obj(name):
+    with open(name + ".pkl", "rb") as f:
+        return pickle.load(f, encoding="latin-1")
+
+
 class _CocoStuff(data.Dataset):
     """COCO-Stuff base class"""
 
@@ -131,6 +136,15 @@ class _CocoStuff(data.Dataset):
             self.images.append(image)
             self.labels.append(label)
 
+    def init_embeddings(self):
+        embed_arr = load_obj("embeddings/pascal/w2c/norm_embed_arr_" + str(self.w2c_size))
+        self.make_embeddings(embed_arr)
+
+    def make_embeddings(self, embed_arr):
+        self.embeddings = torch.nn.Embedding(embed_arr.shape[0], embed_arr.shape[1])
+        self.embeddings.weight.requires_grad = False
+        self.embeddings.weight.data.copy_(torch.from_numpy(embed_arr))
+
     def __getitem__(self, index):
         # print(index)
         if self.preload:
@@ -146,7 +160,15 @@ class _CocoStuff(data.Dataset):
         else:
             image, label = self._transform(image, label, False)
             return image.astype(np.float32), label.astype(np.int64), str(image_id[1])
-        return image.astype(np.float32), label.astype(np.int64)
+
+        image = image.astype(np.float32)
+        label = label.astype(np.int64)
+        if self.split == 'train':
+            label += 1
+            mask = label == 256
+            label[mask] = 0
+
+        return image, label
 
     def __len__(self):
         return len(self.files)
@@ -223,6 +245,7 @@ class LoaderZLS(_CocoStuff):
         # Load an image        
         image = cv2.imread(image_path, cv2.IMREAD_COLOR).astype(np.float32)
         label = np.array(Image.open(label_path)).astype(np.int64)
+
         return image, label
 
 

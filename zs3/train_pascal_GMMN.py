@@ -91,11 +91,11 @@ class Trainer:
         self.nclass = 21
 
         # Define Dataloader
-        # kwargs = {"num_workers": args.workers, "pin_memory": True}
-        # (self.train_loader, self.val_loader, _, self.nclass,) = make_data_loader(
-        #     args, load_embedding=args.load_embedding, w2c_size=args.w2c_size, **kwargs
-        # )
-        # print('self.nclass', self.nclass)
+        kwargs = {"num_workers": args.workers, "pin_memory": True}
+        (self.train_loader, self.val_loader, _, self.nclass,) = make_data_loader(
+            args, load_embedding=args.load_embedding, w2c_size=args.w2c_size, **kwargs
+        )
+        print('self.nclass', self.nclass)
 
         # Define network
         model = DeepLab(
